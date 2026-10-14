@@ -1,12 +1,13 @@
 """
 포스텔러 트위터 탭 글을 스레드에 자동 발행하는 스크립트
 
-  python threads_bot.py post     -> 오늘 날짜 글을 스레드에 발행
+  python threads_bot.py post     -> 내일(또는 오늘) 날짜 글을 스레드에 발행
   python threads_bot.py refresh  -> 액세스 토큰 60일 연장
 
 필요한 값(GitHub Secrets에 저장):
-  THREADS_TOKEN    : 60일짜리 액세스 토큰
-  THREADS_USER_ID  : 스레드 id 숫자
+  THREADS_TOKEN      : 60일짜리 액세스 토큰
+  THREADS_USER_ID    : 스레드 id 숫자
+  SLACK_WEBHOOK_URL  : 슬랙 알림 주소 (없으면 알림만 생략)
 """
 import json
 import os
@@ -50,25 +51,54 @@ def call(url, params=None, method="GET"):
         raise
 
 
+def set_result(msg):
+    """슬랙 알림에 보낼 문구를 남겨두기"""
+    print(msg)
+    path = os.environ.get("GITHUB_ENV")
+    if path:
+        with open(path, "a") as f:
+            f.write(f"RESULT_MSG<<EOF_MSG\n{msg}\nEOF_MSG\n")
+
+
+def fail(msg):
+    set_result(f"실패: {msg}")
+    sys.exit(msg)
+
+
+def already_posted(date_text):
+    """최근 스레드 글 중에 같은 날짜 운세가 이미 있는지 확인 (중복 발행 방지)"""
+    res = call(f"{API}/{USER_ID}/threads", {"fields": "text", "limit": "10", "access_token": TOKEN})
+    for item in res.get("data", []):
+        first = (item.get("text") or "").split("\n")[0]
+        if date_text in first:
+            return True
+    return False
+
+
 def post():
     now = datetime.now(ZoneInfo("Asia/Seoul"))
     # 며칠 뒤 운세를 올릴지 (1 = 내일 운세, 0 = 오늘 운세)
     days_ahead = int(os.environ.get("DAYS_AHEAD", "1"))
     target = now + timedelta(days=days_ahead)
+    expected = f"{target.year}년 {target.month}월 {target.day}일"
+
+    # 0) 이미 같은 날짜 글이 올라가 있으면 건너뛰기
+    if already_posted(expected):
+        set_result(f"{expected} 띠별 운세는 이미 올라가 있어서 이번 발행은 건너뛰었어요.")
+        return
 
     # 1) 포스텔러 데이터에서 해당 월 글 목록 가져오기
     #    (말일 밤처럼 대상 날짜가 다음 달이면 '다음 달' 목록을 사용)
     month = "current" if target.month == now.month else "next"
     posts = call(SOURCE_URL.replace("month=current", f"month={month}"))["data"]
     if target.day > len(posts):
-        sys.exit(f"{target.month}월 {target.day}일 글이 아직 없어요. (목록에 {len(posts)}개뿐)")
+        fail(f"{target.month}월 {target.day}일 글이 아직 페이지에 없어요. (목록에 {len(posts)}개뿐)")
     text = posts[target.day - 1]
 
     # 2) 안전장치: 글 첫 줄 날짜가 올릴 날짜와 맞는지 확인
     first_line = text.splitlines()[0]
-    expected = f"{target.year}년 {target.month}월 {target.day}일"
     if expected not in first_line:
-        sys.exit(f"날짜가 안 맞아서 발행을 멈췄어요. 대상: {expected} / 글: {first_line}")
+        fail(f"날짜가 안 맞아서 발행을 멈췄어요. 대상: {expected} / 글: {first_line}")
 
     # 전날 밤에 올리니까 첫 줄의 '오늘의 '를 빼기 -> "☀️ 2026년 10월 15일 띠별 운세"
     new_first_line = first_line.replace("오늘의 ", "")
@@ -92,7 +122,14 @@ def post():
         {"creation_id": created["id"], "access_token": TOKEN},
         "POST",
     )
-    print(f"발행 완료! ({first_line}) 게시물 id: {result['id']}")
+
+    # 5) 게시물 링크 가져오기 (실패해도 발행은 된 것이니 넘어감)
+    link = ""
+    try:
+        link = call(f"{API}/{result['id']}", {"fields": "permalink", "access_token": TOKEN}).get("permalink", "")
+    except Exception:
+        pass
+    set_result(f"발행 완료: {first_line}\n{link}".strip())
 
 
 def refresh():
@@ -101,7 +138,7 @@ def refresh():
         {"grant_type": "th_refresh_token", "access_token": TOKEN},
     )
     days = res.get("expires_in", 0) // 86400
-    print(f"토큰 연장 완료: 앞으로 약 {days}일 유효")
+    set_result(f"토큰 연장 완료: 앞으로 약 {days}일 유효")
 
     new_token = res["access_token"]
     if new_token != TOKEN:
