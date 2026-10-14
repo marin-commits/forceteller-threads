@@ -1,0 +1,46 @@
+name: Threads 자동 발행
+
+on:
+  schedule:
+    - cron: "55 11 * * *"   # 매일 한국시간 밤 8시 55분에 내일 운세 발행 (GitHub은 한국보다 9시간 느린 기준)
+    - cron: "0 3 1,15 * *"  # 매월 1일, 15일 한국시간 정오: 토큰 연장
+  workflow_dispatch:         # 수동 실행 버튼 (테스트용)
+    inputs:
+      mode:
+        description: "실행할 작업"
+        type: choice
+        options: [post, refresh]
+        default: post
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 무슨 작업인지 정하기
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "MODE=${{ inputs.mode }}" >> $GITHUB_ENV
+          elif [ "${{ github.event.schedule }}" = "0 3 1,15 * *" ]; then
+            echo "MODE=refresh" >> $GITHUB_ENV
+          else
+            echo "MODE=post" >> $GITHUB_ENV
+          fi
+
+      - name: 실행
+        env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          DAYS_AHEAD: "1"   # 1 = 내일 운세 / 0 = 오늘 운세 (아침 발행으로 바꿀 때 0으로)
+        run: python threads_bot.py "$MODE"
+
+      - name: 새 토큰이 나왔으면 Secrets에 저장
+        if: env.NEW_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: gh secret set THREADS_TOKEN --body "$NEW_TOKEN" --repo "$GITHUB_REPOSITORY"
