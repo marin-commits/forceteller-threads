@@ -61,7 +61,7 @@ def set_result(msg):
 
 
 def fail(msg):
-    set_result(f"실패: {msg}")
+    set_result(f"스레드 오늘의 운세 업로드 실패\n사유: {msg}")
     sys.exit(msg)
 
 
@@ -84,7 +84,7 @@ def post():
 
     # 0) 이미 같은 날짜 글이 올라가 있으면 건너뛰기
     if already_posted(expected):
-        set_result(f"{expected} 띠별 운세는 이미 올라가 있어서 이번 발행은 건너뛰었어요.")
+        set_result(f"스레드 오늘의 운세 업로드 건너뜀 ({target.month}월 {target.day}일 운세가 이미 올라가 있음)")
         return
 
     # 1) 포스텔러 데이터에서 해당 월 글 목록 가져오기
@@ -129,7 +129,8 @@ def post():
         link = call(f"{API}/{result['id']}", {"fields": "permalink", "access_token": TOKEN}).get("permalink", "")
     except Exception:
         pass
-    set_result(f"발행 완료: {first_line}\n{link}".strip())
+    print(f"발행 완료: {first_line}")
+    set_result(f"스레드 오늘의 운세 업로드 성공\n{link}".strip())
 
 
 def refresh():
@@ -138,7 +139,7 @@ def refresh():
         {"grant_type": "th_refresh_token", "access_token": TOKEN},
     )
     days = res.get("expires_in", 0) // 86400
-    set_result(f"토큰 연장 완료: 앞으로 약 {days}일 유효")
+    set_result(f"스레드 토큰 연장 성공 (약 {days}일 유효)")
 
     new_token = res["access_token"]
     if new_token != TOKEN:
