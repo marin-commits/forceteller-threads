@@ -45,8 +45,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: gh secret set THREADS_TOKEN --body "$NEW_TOKEN" --repo "$GITHUB_REPOSITORY"
 
-      - name: 슬랙 알림
-        if: always()
+      - name: 슬랙 알림 (운세 발행만, 토큰 연장은 알림 안 보냄)
+        if: always() && env.MODE != 'refresh'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           STATUS: ${{ job.status }}
