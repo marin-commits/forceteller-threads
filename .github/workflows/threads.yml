@@ -50,7 +50,6 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           STATUS: ${{ job.status }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then echo "슬랙 주소가 없어서 알림 생략"; exit 0; fi
           if [ "$STATUS" = "success" ]; then
@@ -59,5 +58,5 @@ jobs:
             ICON="🚨"
             RESULT_MSG="${RESULT_MSG:-스레드 작업 중 오류가 났어요 ($MODE)}"
           fi
-          export TEXT="$ICON [스레드 자동화] $RESULT_MSG"$'\n'"실행 기록: $RUN_URL"
+          export TEXT="$ICON [스레드 자동화] $RESULT_MSG"
           python3 -c 'import json,os,urllib.request; urllib.request.urlopen(urllib.request.Request(os.environ["SLACK_WEBHOOK_URL"], data=json.dumps({"text": os.environ["TEXT"]}).encode(), headers={"Content-Type": "application/json"}))'
