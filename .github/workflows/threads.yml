@@ -56,7 +56,8 @@ jobs:
             ICON="✅"
           else
             ICON="🚨"
-            RESULT_MSG="${RESULT_MSG:-스레드 작업 중 오류가 났어요 ($MODE)}"
+            if [ "$MODE" = "refresh" ]; then DEFAULT_MSG="스레드 토큰 연장 실패"; else DEFAULT_MSG="스레드 오늘의 운세 업로드 실패"; fi
+            RESULT_MSG="${RESULT_MSG:-$DEFAULT_MSG}"
           fi
-          export TEXT="$ICON [스레드 자동화] $RESULT_MSG"
+          export TEXT="$ICON $RESULT_MSG"
           python3 -c 'import json,os,urllib.request; urllib.request.urlopen(urllib.request.Request(os.environ["SLACK_WEBHOOK_URL"], data=json.dumps({"text": os.environ["TEXT"]}).encode(), headers={"Content-Type": "application/json"}))'
