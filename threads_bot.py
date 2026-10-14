@@ -10,6 +10,7 @@
 """
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -23,6 +24,9 @@ USER_ID = os.environ["THREADS_USER_ID"]
 
 SOURCE_URL = "https://external-api.forceteller.com/api/interactive/outsource/twitter?month=current"
 API = "https://graph.threads.net/v1.0"
+
+# 스레드용 원링크 (글 안의 원링크를 모두 이 링크로 바꿔서 발행)
+THREADS_LINK = "https://forcetellerkr.onelink.me/Jfkr/2r7wxf79"
 
 
 def call(url, params=None, method="GET"):
@@ -67,6 +71,9 @@ def post():
     new_first_line = first_line.replace("오늘의 ", "")
     text = text.replace(first_line, new_first_line, 1)
     first_line = new_first_line
+
+    # 트위터용 원링크를 스레드용 원링크로 교체
+    text = re.sub(r"https://forcetellerkr\.onelink\.me/\S+", THREADS_LINK, text)
 
     # 3) 스레드에 '발행 준비' 요청 -> 접수번호(id) 받기
     created = call(
