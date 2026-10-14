@@ -28,6 +28,9 @@ API = "https://graph.threads.net/v1.0"
 # 스레드용 원링크 (글 안의 원링크를 모두 이 링크로 바꿔서 발행)
 THREADS_LINK = "https://forcetellerkr.onelink.me/Jfkr/2r7wxf79"
 
+# 스레드 주제(토픽) 태그
+TOPIC_TAG = "사주"
+
 
 def call(url, params=None, method="GET"):
     """주소에 요청을 보내고 결과를 받아오는 도우미"""
@@ -78,7 +81,7 @@ def post():
     # 3) 스레드에 '발행 준비' 요청 -> 접수번호(id) 받기
     created = call(
         f"{API}/{USER_ID}/threads",
-        {"media_type": "TEXT", "text": text, "access_token": TOKEN},
+        {"media_type": "TEXT", "text": text, "topic_tag": TOPIC_TAG, "access_token": TOKEN},
         "POST",
     )
     time.sleep(5)
