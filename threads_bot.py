@@ -79,7 +79,9 @@ def post():
     now = datetime.now(ZoneInfo("Asia/Seoul"))
     # 며칠 뒤 운세를 올릴지 (1 = 내일 운세, 0 = 오늘 운세)
     days_ahead = int(os.environ.get("DAYS_AHEAD", "1"))
-    target = now + timedelta(days=days_ahead)
+    # 깃허브 예약이 늦어져 자정을 넘겨 실행돼도(새벽~오전) '전날 밤 실행'으로 보고 날짜를 계산
+    base = now - timedelta(days=1) if now.hour < 12 else now
+    target = base + timedelta(days=days_ahead)
     expected = f"{target.year}년 {target.month}월 {target.day}일"
 
     # 0) 이미 같은 날짜 글이 올라가 있으면 건너뛰기
