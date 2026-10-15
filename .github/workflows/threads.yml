@@ -2,7 +2,12 @@ name: Threads 자동 발행
 
 on:
   schedule:
-    - cron: "55 11 * * *"   # 매일 한국시간 밤 8시 55분에 내일 운세 발행 (GitHub은 한국보다 9시간 느린 기준)
+    # 매일 밤 한국시간 8:55 / 9:55 / 10:55 / 11:55 에 실행 (GitHub은 한국보다 9시간 느린 기준)
+    # 처음 성공한 한 번만 올라가고, 나머지는 '이미 올라감'으로 조용히 건너뜀
+    - cron: "55 11 * * *"
+    - cron: "55 12 * * *"
+    - cron: "55 13 * * *"
+    - cron: "55 14 * * *"
     - cron: "0 3 1,15 * *"  # 매월 1일, 15일 한국시간 정오: 토큰 연장
   workflow_dispatch:         # 수동 실행 버튼 (테스트용)
     inputs:
@@ -15,6 +20,10 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    # 밀린 실행이 한꺼번에 돌아도 동시에 올리지 않도록 한 번에 하나씩만 실행
+    concurrency:
+      group: threads-bot
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -45,8 +54,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: gh secret set THREADS_TOKEN --body "$NEW_TOKEN" --repo "$GITHUB_REPOSITORY"
 
-      - name: 슬랙 알림 (운세 발행만, 토큰 연장은 알림 안 보냄)
-        if: always() && env.MODE != 'refresh'
+      - name: 슬랙 알림 (운세 발행 성공/실패만, 건너뜀·토큰 연장은 알림 없음)
+        if: always() && env.MODE != 'refresh' && env.SKIPPED != '1'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           STATUS: ${{ job.status }}
