@@ -86,7 +86,12 @@ def post():
 
     # 0) 이미 같은 날짜 글이 올라가 있으면 건너뛰기
     if already_posted(expected):
-        set_result(f"스레드 오늘의 운세 업로드 건너뜀 ({target.month}월 {target.day}일 운세가 이미 올라가 있음)")
+        # 하루에 여러 번 실행되므로, 이미 올라가 있으면 슬랙 알림 없이 조용히 넘어감
+        print(f"{target.month}월 {target.day}일 운세가 이미 올라가 있어서 건너뜀")
+        path = os.environ.get("GITHUB_ENV")
+        if path:
+            with open(path, "a") as f:
+                f.write("SKIPPED=1\n")
         return
 
     # 1) 포스텔러 데이터에서 해당 월 글 목록 가져오기
